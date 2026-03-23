@@ -6,7 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type successBody struct {
@@ -29,6 +31,10 @@ func TestWebhook(t *testing.T) {
 	successJson, err := json.Marshal(successBody)
 
 	assert.NoError(t, err)
+
+	handler := http.HandlerFunc(webhook)
+	srv := httptest.NewServer(handler)
+	defer srv.Close()
 
 	testCases := []struct {
 		method       string
@@ -58,15 +64,18 @@ func TestWebhook(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		r := httptest.NewRequest(tc.method, "/", nil)
-		w := httptest.NewRecorder()
 
-		webhook(w, r)
+		req := resty.New().R()
+		req.Method = tc.method
+		req.URL = srv.URL
 
-		assert.Equal(t, tc.expectedCode, w.Code)
+		resp, err := req.Send()
+		require.NoError(t, err)
+
+		assert.Equal(t, tc.expectedCode, resp.StatusCode())
 
 		if tc.expectedBody != "" {
-			assert.JSONEq(t, tc.expectedBody, w.Body.String())
+			assert.JSONEq(t, tc.expectedBody, string(resp.Body()))
 		}
 	}
 
