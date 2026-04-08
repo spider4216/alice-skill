@@ -11,11 +11,16 @@ const (
 )
 
 func main() {
-	run()
+	parseFlags()
+
+	if err := run(); err != nil {
+		panic(err)
+	}
 }
 
-func run() {
-	http.ListenAndServe(":8080", http.HandlerFunc(webhook))
+func run() error {
+	fmt.Println("Run on", flagRunAddr)
+	return http.ListenAndServe(flagRunAddr, http.HandlerFunc(webhook))
 }
 
 func webhook(w http.ResponseWriter, r *http.Request) {
