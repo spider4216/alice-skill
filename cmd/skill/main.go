@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/spider4216/alice-skill/internal/logger"
+	"go.uber.org/zap"
 )
 
 const (
@@ -19,8 +22,14 @@ func main() {
 }
 
 func run() error {
+	if err := logger.Initialize(flagLogLevel); err != nil {
+		return err
+	}
+
+	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
+
 	fmt.Println("Run on", flagRunAddr)
-	return http.ListenAndServe(flagRunAddr, http.HandlerFunc(webhook))
+	return http.ListenAndServe(flagRunAddr, http.HandlerFunc(logger.RequestLogger(webhook)))
 }
 
 func webhook(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +57,8 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprint(w, string(json))
+
+	logger.Log.Debug("sending HTTP 200 response")
 }
 
 type Response struct {
