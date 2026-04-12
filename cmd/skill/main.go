@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/spider4216/alice-skill/internal/logger"
+	"github.com/spider4216/alice-skill/internal/models"
 	"go.uber.org/zap"
 )
 
@@ -39,33 +40,38 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("content-type", "application/json")
+	logger.Log.Debug("decoding request")
 
-	resp := Response{
-		Response: ResponseBody{
+	req := models.Request{}
+	dec := json.NewDecoder(r.Body)
+
+	if err := dec.Decode(&req); err != nil {
+		logger.Log.Debug("cannot decod json request body", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if req.Request.Type != models.TypeSimpleUtterance {
+		logger.Log.Debug("unsupported request type", zap.String("type", req.Request.Type))
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		return
+	}
+
+	resp := models.Response{
+		Response: models.ResponsePayload{
 			Text: "Извините, я пока ничего не умею",
 		},
 		Version: ApiVer,
 	}
 
-	json, err := json.Marshal(resp)
+	w.Header().Set("content-type", "application/json")
 
-	if err != nil {
-		fmt.Fprint(w, "Something went wrong while preparing response")
-		w.WriteHeader(http.StatusBadRequest)
+	enc := json.NewEncoder(w)
+
+	if err := enc.Encode(resp); err != nil {
+		logger.Log.Debug("error encoding response", zap.Error(err))
 		return
 	}
 
-	fmt.Fprint(w, string(json))
-
 	logger.Log.Debug("sending HTTP 200 response")
-}
-
-type Response struct {
-	Response ResponseBody `json:"response"`
-	Version  string       `json:"version"`
-}
-
-type ResponseBody struct {
-	Text string `json:"text"`
 }
