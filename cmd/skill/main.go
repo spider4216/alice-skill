@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/spider4216/alice-skill/internal/logger"
 	"github.com/spider4216/alice-skill/internal/models"
@@ -30,7 +31,39 @@ func run() error {
 	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
 
 	fmt.Println("Run on", flagRunAddr)
-	return http.ListenAndServe(flagRunAddr, http.HandlerFunc(logger.RequestLogger(webhook)))
+	return http.ListenAndServe(flagRunAddr, http.HandlerFunc(logger.RequestLogger(gzipMiddleware(webhook))))
+}
+
+func gzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ow := w
+
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		supportGzip := strings.Contains(acceptEncoding, "gzip")
+
+		if supportGzip {
+			cw := NewCompressWriter(w)
+			ow = cw
+			defer cw.Close()
+		}
+
+		contentEncoding := r.Header.Get("Content-Encoding")
+		sendsGzip := strings.Contains(contentEncoding, "gzip")
+
+		if sendsGzip {
+			cr, err := NewCompressReader(r.Body)
+
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			r.Body = cr
+			defer cr.Close()
+		}
+
+		h.ServeHTTP(ow, r)
+	}
 }
 
 func webhook(w http.ResponseWriter, r *http.Request) {
