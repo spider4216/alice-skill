@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/spider4216/alice-skill/internal/logger"
 	"github.com/spider4216/alice-skill/internal/models"
@@ -90,9 +91,26 @@ func webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	text := "Для вас нет новых сообщений"
+
+	if req.Session.New {
+		tz, err := time.LoadLocation(req.Timezone)
+
+		if err != nil {
+			logger.Log.Error("cannot parse timezone")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		now := time.Now().In(tz)
+		hour, min, _ := now.Clock()
+
+		text = fmt.Sprintf("Точное время %d часов, %d минут. %s", hour, min, text)
+	}
+
 	resp := models.Response{
 		Response: models.ResponsePayload{
-			Text: "Извините, я пока ничего не умею",
+			Text: text,
 		},
 		Version: ApiVer,
 	}

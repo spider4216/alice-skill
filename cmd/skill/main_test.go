@@ -3,14 +3,12 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/spider4216/alice-skill/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,7 +38,7 @@ func TestGzipCompression(t *testing.T) {
 
 	successBody := `{
         "response": {
-            "text": "Извините, я пока ничего не умею"
+            "text": "Для вас нет новых сообщений"
         },
         "version": "1.0"
     }`
@@ -93,17 +91,6 @@ func TestGzipCompression(t *testing.T) {
 }
 
 func TestWebhook(t *testing.T) {
-	successBody := models.Response{
-		Response: models.ResponsePayload{
-			Text: "Извините, я пока ничего не умею",
-		},
-		Version: ApiVer,
-	}
-
-	successJson, err := json.Marshal(successBody)
-
-	assert.NoError(t, err)
-
 	handler := http.HandlerFunc(webhook)
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
@@ -149,9 +136,9 @@ func TestWebhook(t *testing.T) {
 		{
 			name:         "method_post_success",
 			method:       http.MethodPost,
-			body:         `{"request": {"type": "SimpleUtterance", "command": "sudo do something"}, "version": "1.0"}`,
+			body:         `{"request": {"type": "SimpleUtterance", "command": "sudo do something"}, "session": {"new": true}, "version": "1.0"}`,
 			expectedCode: http.StatusOK,
-			expectedBody: string(successJson),
+			expectedBody: "Точное время .* часов, .* минут. Для вас нет новых сообщений",
 		},
 	}
 
@@ -172,7 +159,7 @@ func TestWebhook(t *testing.T) {
 		assert.Equal(t, tc.expectedCode, resp.StatusCode())
 
 		if tc.expectedBody != "" {
-			assert.JSONEq(t, tc.expectedBody, string(resp.Body()))
+			assert.Regexp(t, tc.expectedBody, string(resp.Body()))
 		}
 	}
 
