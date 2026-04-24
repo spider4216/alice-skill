@@ -7,8 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/golang/mock/gomock"
+	"github.com/spider4216/alice-skill/internal/store"
+	"github.com/spider4216/alice-skill/internal/store/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +27,24 @@ type response struct {
 }
 
 func TestGzipCompression(t *testing.T) {
-	handler := http.HandlerFunc(gzipMiddleware(webhook))
+	ctrl := gomock.NewController(t)
+	s := mock.NewMockMessageStore(ctrl)
+	messages := []store.Message{
+		{
+			Sender:  "411419e5-f5be-4cdb-83aa-2ca2b6648353",
+			Time:    time.Now(),
+			Payload: "Hello!",
+		},
+	}
+
+	s.EXPECT().
+		ListMessages(gomock.Any(), gomock.Any()).
+		Return(messages, nil).
+		Times(2)
+
+	appInstance := newApp(s)
+
+	handler := http.HandlerFunc(gzipMiddleware(appInstance.webhook))
 
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
@@ -38,7 +59,7 @@ func TestGzipCompression(t *testing.T) {
 
 	successBody := `{
         "response": {
-            "text": "Для вас нет новых сообщений"
+            "text": "Для вас 1 новых сообщений"
         },
         "version": "1.0"
     }`
@@ -91,7 +112,23 @@ func TestGzipCompression(t *testing.T) {
 }
 
 func TestWebhook(t *testing.T) {
-	handler := http.HandlerFunc(webhook)
+	ctrl := gomock.NewController(t)
+	s := mock.NewMockMessageStore(ctrl)
+	messages := []store.Message{
+		{
+			Sender:  "411419e5-f5be-4cdb-83aa-2ca2b6648353",
+			Time:    time.Now(),
+			Payload: "Hello!",
+		},
+	}
+
+	s.EXPECT().
+		ListMessages(gomock.Any(), gomock.Any()).
+		Return(messages, nil)
+
+	appInstance := newApp(s)
+
+	handler := http.HandlerFunc(appInstance.webhook)
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
 
@@ -138,7 +175,7 @@ func TestWebhook(t *testing.T) {
 			method:       http.MethodPost,
 			body:         `{"request": {"type": "SimpleUtterance", "command": "sudo do something"}, "session": {"new": true}, "version": "1.0"}`,
 			expectedCode: http.StatusOK,
-			expectedBody: "Точное время .* часов, .* минут. Для вас нет новых сообщений",
+			expectedBody: "Точное время .* часов, .* минут. Для вас 1 новых сообщений",
 		},
 	}
 
