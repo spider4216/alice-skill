@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/spider4216/alice-skill/internal/logger"
+	"github.com/spider4216/alice-skill/internal/store/pg"
 	"go.uber.org/zap"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 const (
@@ -26,7 +31,15 @@ func run() error {
 		return err
 	}
 
-	appInstance := newApp(nil)
+	conn, err := sql.Open("pgx", flagDatabaseURI)
+	if err != nil {
+		return err
+	}
+
+	store := pg.NewStore(conn)
+	store.Bootstrap(context.Background())
+
+	appInstance := newApp(store)
 
 	logger.Log.Info("Running server", zap.String("address", flagRunAddr))
 

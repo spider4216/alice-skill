@@ -13,7 +13,7 @@ type MessageStore interface {
 }
 
 type Message struct {
-	ID      string
+	ID      int64
 	Sender  string
 	Time    time.Time
 	Payload string
