@@ -59,7 +59,7 @@ func TestGzipCompression(t *testing.T) {
 
 	successBody := `{
         "response": {
-            "text": "Для вас 1 новых сообщений"
+            "text": "Для вас 1 новых сообщений."
         },
         "version": "1.0"
     }`
@@ -175,7 +175,7 @@ func TestWebhook(t *testing.T) {
 			method:       http.MethodPost,
 			body:         `{"request": {"type": "SimpleUtterance", "command": "sudo do something"}, "session": {"new": true}, "version": "1.0"}`,
 			expectedCode: http.StatusOK,
-			expectedBody: "Точное время .* часов, .* минут. Для вас 1 новых сообщений",
+			expectedBody: "Точное время .* часов, .* минут. Для вас 1 новых сообщений.",
 		},
 	}
 
